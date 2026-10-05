@@ -62,6 +62,12 @@ enum PaceMath {
         return total > 0 ? total : nil
     }
 
+    /// 秒欄と 1/10 秒欄をまとめて "58.3" 形式にする
+    static func joinTenths(_ seconds: String, _ tenths: String) -> String {
+        if tenths.isEmpty { return seconds }
+        return (seconds.isEmpty ? "0" : seconds) + "." + tenths
+    }
+
     /// 秒/km
     static func pace(meters: Double, seconds: Double) -> Double {
         seconds / meters * 1000
@@ -164,6 +170,11 @@ enum TimeFormat {
 }
 
 enum InputFilter {
+    /// 数字だけを残し、最大文字数で切る
+    static func digits(_ value: String, maxLength: Int) -> String {
+        String(value.filter { $0.isASCII && $0.isNumber }.prefix(maxLength))
+    }
+
     /// 数字と小数点 1 つだけを残し、最大文字数で切る（"," は "." として扱う）
     static func sanitize(_ value: String, maxLength: Int) -> String {
         var seenDot = false
