@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ペース計算</title>
+  <meta name="description" content="距離とタイムからキロペース・400mラップ・スプリットを計算するランナー向けアプリ">
+  <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="ペース計算">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app">
+    <header class="app-header">
+      <h1>ペース計算</h1>
+      <button type="button" class="link-btn" id="reset">クリア</button>
+    </header>
+
+    <div class="segmented" role="tablist" aria-label="計算モード">
+      <button type="button" role="tab" data-mode="time">タイム → ペース</button>
+      <button type="button" role="tab" data-mode="pace">ペース → タイム</button>
+    </div>
+
+    <section class="card">
+      <h2 class="label">種目</h2>
+      <div class="chips" id="events"></div>
+      <div class="custom-distance" id="custom-distance" hidden>
+        <input id="custom-value" class="field" type="text" inputmode="decimal" placeholder="例: 12.5" aria-label="距離" autocomplete="off">
+        <div class="segmented small" id="custom-unit">
+          <button type="button" data-unit="km">km</button>
+          <button type="button" data-unit="m">m</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="time-input">
+      <h2 class="label">タイム</h2>
+      <div class="hms">
+        <label class="unit-box" id="hours-box">
+          <input id="h" class="field num" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" placeholder="0" autocomplete="off">
+          <span>時間</span>
+        </label>
+        <span class="colon" id="hours-colon">:</span>
+        <label class="unit-box">
+          <input id="m" class="field num" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="0" autocomplete="off">
+          <span>分</span>
+        </label>
+        <span class="colon">:</span>
+        <label class="unit-box">
+          <input id="s" class="field num" type="text" inputmode="decimal" maxlength="5" placeholder="00" autocomplete="off">
+          <span>秒</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="card" id="pace-input" hidden>
+      <div class="label-row">
+        <h2 class="label">ペース</h2>
+        <div class="segmented small" id="pace-unit">
+          <button type="button" data-unit="km">/km</button>
+          <button type="button" data-unit="400">/400m</button>
+        </div>
+      </div>
+      <div class="hms">
+        <label class="unit-box">
+          <input id="pm" class="field num" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" placeholder="0" autocomplete="off">
+          <span>分</span>
+        </label>
+        <span class="colon">'</span>
+        <label class="unit-box">
+          <input id="ps" class="field num" type="text" inputmode="decimal" maxlength="4" placeholder="00" autocomplete="off">
+          <span>秒</span>
+        </label>
+      </div>
+    </section>
+
+    <section id="results" aria-live="polite"></section>
+  </main>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
