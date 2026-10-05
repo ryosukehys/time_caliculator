@@ -1,9 +1,0 @@
-{
-  "name": "pace-calculator",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "test": "node --test",
-    "start": "npx http-server -p 8080 -c-1 ."
-  }
-}
