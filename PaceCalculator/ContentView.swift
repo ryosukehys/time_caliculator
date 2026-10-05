@@ -33,7 +33,7 @@ enum PaceUnit: String, CaseIterable, Identifiable {
 }
 
 enum InputField: Hashable {
-    case customDistance, hours, minutes, seconds, paceMinutes, paceSeconds
+    case customDistance, hours, minutes, seconds, tenths, paceMinutes, paceSeconds, paceTenths
 }
 
 struct PaceResult {
@@ -50,8 +50,10 @@ struct ContentView: View {
     @AppStorage("hours") private var hours = ""
     @AppStorage("minutes") private var minutes = ""
     @AppStorage("seconds") private var seconds = ""
+    @AppStorage("tenths") private var tenths = ""
     @AppStorage("paceMinutes") private var paceMinutes = ""
     @AppStorage("paceSeconds") private var paceSeconds = ""
+    @AppStorage("paceTenths") private var paceTenths = ""
     @AppStorage("paceUnit") private var paceUnit: PaceUnit = .km
     /// 0 は「距離に応じて自動」
     @AppStorage("splitInterval") private var splitInterval: Double = 0
@@ -96,10 +98,13 @@ struct ContentView: View {
             }
             .onChange(of: customValue) { _, v in customValue = InputFilter.sanitize(v, maxLength: 7) }
             .onChange(of: hours) { _, v in handleInput(v, field: .hours, maxLength: 2) { hours = $0 } }
-            .onChange(of: minutes) { _, v in handleInput(v, field: .minutes, maxLength: 3) { minutes = $0 } }
-            .onChange(of: seconds) { _, v in handleInput(v, field: .seconds, maxLength: 5) { seconds = $0 } }
+            .onChange(of: minutes) { _, v in handleInput(v, field: .minutes, maxLength: 2) { minutes = $0 } }
+            .onChange(of: seconds) { _, v in handleInput(v, field: .seconds, maxLength: 2) { seconds = $0 } }
+            .onChange(of: tenths) { _, v in handleInput(v, field: .tenths, maxLength: 1) { tenths = $0 } }
             .onChange(of: paceMinutes) { _, v in handleInput(v, field: .paceMinutes, maxLength: 2) { paceMinutes = $0 } }
-            .onChange(of: paceSeconds) { _, v in handleInput(v, field: .paceSeconds, maxLength: 4) { paceSeconds = $0 } }
+            .onChange(of: paceSeconds) { _, v in handleInput(v, field: .paceSeconds, maxLength: 2) { paceSeconds = $0 } }
+            .onChange(of: paceTenths) { _, v in handleInput(v, field: .paceTenths, maxLength: 1) { paceTenths = $0 } }
+            .onAppear(perform: migrateDecimalSeconds)
         }
     }
 
@@ -141,12 +146,16 @@ struct ContentView: View {
         Card("タイム") {
             HStack(alignment: .top, spacing: 6) {
                 if showsHours {
-                    NumberBox(text: $hours, unit: "時間", placeholder: "0", decimal: false, focus: $focus, field: .hours)
+                    NumberBox(text: $hours, unit: "時間", placeholder: "0", focus: $focus, field: .hours)
                     Separator(":")
                 }
-                NumberBox(text: $minutes, unit: "分", placeholder: "0", decimal: false, focus: $focus, field: .minutes)
+                NumberBox(text: $minutes, unit: "分", placeholder: "0", focus: $focus, field: .minutes)
                 Separator(":")
-                NumberBox(text: $seconds, unit: "秒", placeholder: "00", decimal: true, focus: $focus, field: .seconds)
+                NumberBox(text: $seconds, unit: "秒", placeholder: "00", focus: $focus, field: .seconds)
+                if showsTenths {
+                    Separator(".")
+                    NumberBox(text: $tenths, unit: "1/10秒", placeholder: "0", compact: true, focus: $focus, field: .tenths)
+                }
             }
         }
     }
@@ -165,9 +174,13 @@ struct ContentView: View {
                 .frame(width: 160)
             }
             HStack(alignment: .top, spacing: 6) {
-                NumberBox(text: $paceMinutes, unit: "分", placeholder: "0", decimal: false, focus: $focus, field: .paceMinutes)
+                NumberBox(text: $paceMinutes, unit: "分", placeholder: "0", focus: $focus, field: .paceMinutes)
                 Separator("'")
-                NumberBox(text: $paceSeconds, unit: "秒", placeholder: "00", decimal: true, focus: $focus, field: .paceSeconds)
+                NumberBox(text: $paceSeconds, unit: "秒", placeholder: "00", focus: $focus, field: .paceSeconds)
+                if showsPaceTenths {
+                    Separator(".")
+                    NumberBox(text: $paceTenths, unit: "1/10秒", placeholder: "0", compact: true, focus: $focus, field: .paceTenths)
+                }
             }
         }
     }
@@ -185,14 +198,22 @@ struct ContentView: View {
         event == .custom || (meters ?? 0) >= 10000
     }
 
+    /// トラック種目（時間欄なし）だけ 1/10 秒欄を出す
+    private var showsTenths: Bool { !showsHours }
+
+    /// 400m ラップ指定のときだけ 1/10 秒欄を出す
+    private var showsPaceTenths: Bool { paceUnit == .lap400 }
+
     private var result: PaceResult? {
         guard let meters else { return nil }
         switch mode {
         case .time:
-            guard let total = PaceMath.parseHMS(showsHours ? hours : "", minutes, seconds) else { return nil }
+            let sec = PaceMath.joinTenths(seconds, showsTenths ? tenths : "")
+            guard let total = PaceMath.parseHMS(showsHours ? hours : "", minutes, sec) else { return nil }
             return PaceResult(meters: meters, seconds: total, secPerKm: PaceMath.pace(meters: meters, seconds: total))
         case .pace:
-            guard let pace = PaceMath.parseHMS("", paceMinutes, paceSeconds) else { return nil }
+            let sec = PaceMath.joinTenths(paceSeconds, showsPaceTenths ? paceTenths : "")
+            guard let pace = PaceMath.parseHMS("", paceMinutes, sec) else { return nil }
             let secPerKm = paceUnit == .km ? pace : pace * 2.5
             return PaceResult(meters: meters, seconds: PaceMath.time(meters: meters, secPerKm: secPerKm), secPerKm: secPerKm)
         }
@@ -203,8 +224,13 @@ struct ContentView: View {
     private var visibleFields: [InputField] {
         var fields: [InputField] = event == .custom ? [.customDistance] : []
         switch mode {
-        case .time: fields += showsHours ? [.hours, .minutes, .seconds] : [.minutes, .seconds]
-        case .pace: fields += [.paceMinutes, .paceSeconds]
+        case .time:
+            if showsHours { fields.append(.hours) }
+            fields += [.minutes, .seconds]
+            if showsTenths { fields.append(.tenths) }
+        case .pace:
+            fields += [.paceMinutes, .paceSeconds]
+            if showsPaceTenths { fields.append(.paceTenths) }
         }
         return fields
     }
@@ -216,25 +242,35 @@ struct ContentView: View {
         if fields.indices.contains(next) { focus = fields[next] }
     }
 
-    /// 数字以外を除去し、時・分欄は 2 桁入ったら次の欄へ送る
+    /// 数字以外を除去し、桁が埋まったら次の欄へ送る（テンキーには「次へ」が無いため）
     private func handleInput(_ value: String, field: InputField, maxLength: Int, assign: (String) -> Void) {
-        let cleaned = InputFilter.sanitize(value, maxLength: maxLength)
+        let cleaned = InputFilter.digits(value, maxLength: maxLength)
         if cleaned != value {
             assign(cleaned)
             return
         }
-        let autoAdvance: Set<InputField> = [.hours, .minutes, .paceMinutes]
-        guard focus == field, autoAdvance.contains(field),
-              cleaned.count >= 2, cleaned.allSatisfy(\.isNumber) else { return }
+        guard focus == field, cleaned.count >= maxLength else { return }
         moveFocus(by: 1)
+    }
+
+    /// 以前のバージョンで保存した "30.5" 形式の秒を、秒と 1/10 秒に分ける
+    private func migrateDecimalSeconds() {
+        for (sec, tenth) in [($seconds, $tenths), ($paceSeconds, $paceTenths)] {
+            let parts = sec.wrappedValue.split(separator: ".", omittingEmptySubsequences: false)
+            guard parts.count == 2 else { continue }
+            sec.wrappedValue = String(parts[0].prefix(2))
+            tenth.wrappedValue = String(parts[1].prefix(1))
+        }
     }
 
     private func clear() {
         hours = ""
         minutes = ""
         seconds = ""
+        tenths = ""
         paceMinutes = ""
         paceSeconds = ""
+        paceTenths = ""
         focus = nil
     }
 }
@@ -289,14 +325,14 @@ struct NumberBox: View {
     @Binding var text: String
     let unit: String
     let placeholder: String
-    let decimal: Bool
+    var compact = false
     var focus: FocusState<InputField?>.Binding
     let field: InputField
 
     var body: some View {
         VStack(spacing: 4) {
             TextField(placeholder, text: $text)
-                .keyboardType(decimal ? .decimalPad : .numberPad)
+                .keyboardType(.numberPad)
                 .multilineTextAlignment(.center)
                 .font(.system(size: 30, weight: .bold, design: .rounded))
                 .monospacedDigit()
@@ -311,8 +347,10 @@ struct NumberBox: View {
             Text(unit)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .fixedSize()
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: compact ? CGFloat(60) : CGFloat.infinity)
     }
 }
 

@@ -75,6 +75,20 @@ struct PaceMathTests {
         #expect(t10k > 2400 && t10k < 2550)
     }
 
+    @Test func joinTenths() {
+        #expect(PaceMath.joinTenths("58", "3") == "58.3")
+        #expect(PaceMath.joinTenths("", "5") == "0.5")
+        #expect(PaceMath.joinTenths("20", "") == "20")
+        #expect(PaceMath.parseHMS("", "1", PaceMath.joinTenths("04", "5")) == 64.5)
+    }
+
+    @Test func digitsInput() {
+        #expect(InputFilter.digits("1a2", maxLength: 3) == "12")
+        #expect(InputFilter.digits("12.5", maxLength: 3) == "125")
+        #expect(InputFilter.digits("12345", maxLength: 2) == "12")
+        #expect(InputFilter.digits("１2", maxLength: 2) == "2")
+    }
+
     @Test func sanitizeInput() {
         #expect(InputFilter.sanitize("1a2", maxLength: 3) == "12")
         #expect(InputFilter.sanitize("12,5", maxLength: 5) == "12.5")
