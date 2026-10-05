@@ -1,6 +1,6 @@
 # ペース計算（time_caliculator）
 
-陸上・マラソンのランナー向けペース計算アプリ。iPhone のホーム画面に追加して、ネイティブアプリのように使える PWA です。
+陸上・マラソンのランナー向けペース計算 iPhone アプリ（SwiftUI）。
 
 ## できること
 
@@ -15,32 +15,38 @@
   - スプリット表、同ペースでの各種目タイム
 - 種目は **400m / 800m / 1500m / 3000m / 5000m / 10000m / ハーフ / フル** をワンタップで選択。それ以外は「距離入力」（km / m）
 - 入力した瞬間に結果を更新。前回の入力は端末に保存
-- テンキー入力・2桁入力で次の欄へ自動移動・ダークモード対応・オフライン動作
+- テンキー入力、時・分は 2 桁入れると次の欄へ自動移動、キーボード上の ∧∨ / 完了ボタン、ダークモード対応
 
-## iPhone で使う
+## 必要環境
 
-1. GitHub Pages で公開した URL を Safari で開く
-2. 共有ボタン →「ホーム画面に追加」
-3. ホーム画面のアイコンから全画面アプリとして起動
+- Xcode 16 以降（macOS）
+- iOS 17 以降の iPhone
 
-### GitHub Pages の有効化（初回のみ）
+## iPhone で動かす
 
-リポジトリの **Settings → Pages → Build and deployment → Source** を **GitHub Actions** にする。
-以降 `main` に push するたびに `.github/workflows/pages.yml` がテスト後に自動デプロイする。
+1. `PaceCalculator.xcodeproj` を Xcode で開く
+2. プロジェクト → ターゲット **PaceCalculator** → **Signing & Capabilities** → **Team** で自分の Apple Developer アカウントを選ぶ
+   - Bundle Identifier（`com.ryosukehys.PaceCalculator`）が使えないと言われたら、任意の一意な ID に変更する
+3. iPhone を Mac に接続し、上部の実行先で自分の iPhone を選んで ▶︎（⌘R）
+   - 初回は iPhone の **設定 → プライバシーとセキュリティ → デベロッパモード** をオンにする
+
+TestFlight で配る場合は **Product → Archive** → Organizer から App Store Connect にアップロードする。
 
 ## 開発
 
-ビルド不要の素の HTML / CSS / JavaScript です。
+| パス | 役割 |
+| --- | --- |
+| `PaceCalculator/Pace.swift` | 計算ロジック・表示フォーマット（純粋関数） |
+| `PaceCalculator/ContentView.swift` | 入力画面 |
+| `PaceCalculator/ResultsView.swift` | 結果表示（ペース・スプリット・予想タイム） |
+| `PaceCalculator/Assets.xcassets` | アプリアイコン・アクセントカラー |
+| `PaceCalculatorTests/` | ユニットテスト（Swift Testing） |
+
+テストは Xcode で ⌘U、または:
 
 ```sh
-npm start   # http://localhost:8080 で起動
-npm test    # 計算ロジックのユニットテスト（Node 22+）
+xcodebuild test -project PaceCalculator.xcodeproj -scheme PaceCalculator \
+  -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 
-| ファイル | 役割 |
-| --- | --- |
-| `index.html` / `styles.css` | 画面 |
-| `js/pace.js` | 計算ロジック（純粋関数） |
-| `js/app.js` | 入力・描画 |
-| `sw.js` | オフライン用 Service Worker（更新時は `VERSION` を上げる） |
-| `manifest.webmanifest` / `icons/` | ホーム画面追加用 |
+プルリクエストと `main` への push では GitHub Actions（macOS）でビルドとテストが自動実行される。
