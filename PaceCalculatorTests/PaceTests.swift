@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import Testing
 @testable import PaceCalculator
@@ -160,3 +161,30 @@ struct FavoriteTests {
         #expect(input.result?.seconds == 58)
     }
 }
+
+struct DrawerSwipeTests {
+    @Test func horizontalDetection() {
+        #expect(DrawerSwipe.isHorizontal(CGSize(width: 40, height: 5)))
+        #expect(DrawerSwipe.isHorizontal(CGSize(width: -40, height: 10)))
+        #expect(!DrawerSwipe.isHorizontal(CGSize(width: 10, height: 40)))
+        #expect(!DrawerSwipe.isHorizontal(CGSize(width: 30, height: 25)))
+    }
+
+    @Test func openAndCloseThresholds() {
+        #expect(DrawerSwipe.shouldOpen(translation: 120, predicted: 120, panelWidth: 300))
+        #expect(!DrawerSwipe.shouldOpen(translation: 50, predicted: 60, panelWidth: 300))
+        #expect(DrawerSwipe.shouldOpen(translation: 50, predicted: 200, panelWidth: 300))
+        #expect(DrawerSwipe.shouldClose(translation: -120, predicted: -120, panelWidth: 300))
+        #expect(!DrawerSwipe.shouldClose(translation: -50, predicted: -60, panelWidth: 300))
+    }
+
+    @Test func progressFollowsFinger() {
+        #expect(DrawerSwipe.progress(isOpen: false, dragX: 0, panelWidth: 300) == 0)
+        #expect(DrawerSwipe.progress(isOpen: false, dragX: 150, panelWidth: 300) == 0.5)
+        #expect(DrawerSwipe.progress(isOpen: false, dragX: 600, panelWidth: 300) == 1)
+        #expect(DrawerSwipe.progress(isOpen: true, dragX: 0, panelWidth: 300) == 1)
+        #expect(DrawerSwipe.progress(isOpen: true, dragX: -75, panelWidth: 300) == 0.75)
+        #expect(DrawerSwipe.progress(isOpen: true, dragX: -900, panelWidth: 300) == 0)
+    }
+}
+

@@ -15,7 +15,7 @@
   - スプリット表、同ペースでの各種目タイム
 - 種目は **400m / 800m / 1500m / 3000m / 5000m / 10000m / ハーフ / フル** をワンタップで選択。それ以外は「距離入力」（km / m）
 - 入力した瞬間に結果を更新。前回の入力は端末に保存
-- **お気に入り**：自己ベストや目標タイムなどの入力に名前を付けて保存し、左上の ☆ からワンタップで呼び出し（名前変更・並べ替え・削除も可）
+- **お気に入り**：自己ベストや目標タイムなどの入力に名前を付けて保存し、計算画面で右に横スワイプ（または左上の ☆）で一覧を出してワンタップで呼び出し（名前変更・並べ替え・削除も可）
 - 時間・分・秒は数字だけのテンキー（numberPad）で入力。桁が埋まると次の欄へ自動移動、キーボード上の ∧∨ / 完了ボタン、ダークモード対応
 - 0.1 秒単位は専用の「1/10秒」欄で入力（トラック種目のタイム、/400m ペースのとき表示）
 
@@ -47,6 +47,7 @@ TestFlight で配る場合は **Product → Archive** → Organizer から App S
 | `PaceCalculator/ResultsView.swift` | 結果表示（ペース・スプリット・予想タイム） |
 | `PaceCalculator/Favorites.swift` | 入力内容（`PaceInput`）とお気に入りの保存形式 |
 | `PaceCalculator/FavoritesView.swift` | お気に入り一覧画面 |
+| `PaceCalculator/DrawerSwipe.swift` | お気に入り一覧を横スワイプで開閉するときの判定 |
 | `PaceCalculator/Assets.xcassets` | アプリアイコン・アクセントカラー |
 | `PaceCalculatorTests/` | ユニットテスト（Swift Testing） |
 

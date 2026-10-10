@@ -63,8 +63,47 @@ struct ContentView: View {
     @State private var showingSaveAlert = false
     @State private var newFavoriteName = ""
     @State private var savedCount = 0
+    /// お気に入りパネルを指で引き出している量（右が正）
+    @State private var drawerDragX: CGFloat = 0
+    /// 今のドラッグが横方向か（縦スクロールと区別するため、動き始めで判定）
+    @State private var dragIsHorizontal: Bool?
 
     var body: some View {
+        GeometryReader { geo in
+            let panelWidth = min(geo.size.width * 0.86, 420)
+            let progress = DrawerSwipe.progress(isOpen: showingFavorites, dragX: drawerDragX, panelWidth: panelWidth)
+            ZStack(alignment: .leading) {
+                calculator
+                    .simultaneousGesture(drawerDrag(panelWidth: panelWidth, opening: true),
+                                         including: showingFavorites ? .subviews : .all)
+                    .accessibilityHidden(showingFavorites)
+
+                Color.black
+                    .opacity(0.35 * progress)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(showingFavorites)
+                    .onTapGesture { setDrawer(open: false) }
+                    .gesture(drawerDrag(panelWidth: panelWidth, opening: false))
+
+                FavoritesView(
+                    favorites: favorites,
+                    onSelect: {
+                        apply($0.input)
+                        setDrawer(open: false)
+                    },
+                    onClose: { setDrawer(open: false) }
+                )
+                .frame(width: panelWidth)
+                .background(Color(.systemGroupedBackground).ignoresSafeArea())
+                .shadow(color: .black.opacity(0.25 * progress), radius: 12)
+                .offset(x: -panelWidth * (1 - progress))
+                .allowsHitTesting(progress > 0)
+                .accessibilityHidden(!showingFavorites)
+            }
+        }
+    }
+
+    private var calculator: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 12) {
@@ -96,7 +135,7 @@ struct ContentView: View {
             .navigationTitle("ペース計算")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button { showingFavorites = true } label: { Label("お気に入り", systemImage: "star") }
+                    Button { setDrawer(open: true) } label: { Label("お気に入り", systemImage: "star") }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("クリア", action: clear)
@@ -117,15 +156,12 @@ struct ContentView: View {
             .onChange(of: paceSeconds) { _, v in handleInput(v, field: .paceSeconds, maxLength: 2) { paceSeconds = $0 } }
             .onChange(of: paceTenths) { _, v in handleInput(v, field: .paceTenths, maxLength: 1) { paceTenths = $0 } }
             .onAppear(perform: migrateDecimalSeconds)
-            .sheet(isPresented: $showingFavorites) {
-                FavoritesView(favorites: favorites) { apply($0.input) }
-            }
             .alert("お気に入りに保存", isPresented: $showingSaveAlert) {
                 TextField("名前", text: $newFavoriteName)
                 Button("保存", action: saveFavorite)
                 Button("キャンセル", role: .cancel) {}
             } message: {
-                Text("左上の ☆ からいつでも呼び出せます")
+                Text("右にスワイプするか、左上の ☆ からいつでも呼び出せます")
             }
             .sensoryFeedback(.success, trigger: savedCount)
         }
@@ -231,6 +267,39 @@ struct ContentView: View {
             get: { FavoriteStore.decode(favoritesData) },
             set: { favoritesData = FavoriteStore.encode($0) }
         )
+    }
+
+    /// 横スワイプでお気に入りパネルを開閉する。opening が true なら計算画面上の右スワイプ、false なら暗い部分の左スワイプ
+    private func drawerDrag(panelWidth: CGFloat, opening: Bool) -> some Gesture {
+        DragGesture(minimumDistance: 15)
+            .onChanged { value in
+                if dragIsHorizontal == nil { dragIsHorizontal = DrawerSwipe.isHorizontal(value.translation) }
+                guard dragIsHorizontal == true else { return }
+                let x = value.translation.width
+                drawerDragX = opening ? max(0, x) : min(0, x)
+            }
+            .onEnded { value in
+                defer { dragIsHorizontal = nil }
+                guard dragIsHorizontal == true else {
+                    drawerDragX = 0
+                    return
+                }
+                let x = value.translation.width
+                let predicted = value.predictedEndTranslation.width
+                if opening {
+                    setDrawer(open: DrawerSwipe.shouldOpen(translation: x, predicted: predicted, panelWidth: panelWidth))
+                } else {
+                    setDrawer(open: !DrawerSwipe.shouldClose(translation: x, predicted: predicted, panelWidth: panelWidth))
+                }
+            }
+    }
+
+    private func setDrawer(open: Bool) {
+        if open { focus = nil }
+        withAnimation(.snappy) {
+            showingFavorites = open
+            drawerDragX = 0
+        }
     }
 
     private func saveFavorite() {
