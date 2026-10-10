@@ -6,11 +6,20 @@ struct ResultsView: View {
     let mode: CalcMode
     let paceUnit: PaceUnit
     @Binding var splitInterval: Double
+    var onSave: (() -> Void)? = nil
 
     var body: some View {
         if let result {
             VStack(spacing: 12) {
                 HStack(spacing: 10) { heroes(result) }
+                if let onSave {
+                    Button(action: onSave) {
+                        Label("お気に入りに保存", systemImage: "star")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                }
                 Card {
                     HStack(alignment: .top) {
                         Stat(title: "200m", value: TimeFormat.pace(result.secPerKm * 0.2, decimals: 1))

@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import PaceCalculator
 
@@ -102,5 +103,60 @@ struct PaceMathTests {
         #expect(InputFilter.sanitize("12,5", maxLength: 5) == "12.5")
         #expect(InputFilter.sanitize("1.2.3", maxLength: 5) == "1.23")
         #expect(InputFilter.sanitize("12345", maxLength: 2) == "12")
+    }
+}
+
+struct FavoriteTests {
+    @Test func timeInputSummary() {
+        let input = PaceInput(mode: .time, event: .m5000, minutes: "16", seconds: "40")
+        #expect(input.summary == "5000m 16:40.0")
+        #expect(input.resultText == "3'20\"0/km")
+    }
+
+    @Test func paceInputSummary() {
+        let km = PaceInput(mode: .pace, event: .half, paceMinutes: "4", paceSeconds: "00", paceUnit: .km)
+        #expect(km.summary == "ハーフ 4'00\"/km")
+        #expect(km.resultText == "1:24:23")
+
+        let lap = PaceInput(mode: .pace, event: .m1500, paceMinutes: "1", paceSeconds: "04", paceTenths: "0", paceUnit: .lap400)
+        #expect(lap.summary == "1500m 1'04\"0/400m")
+        #expect(lap.resultText == "4:00.0")
+    }
+
+    @Test func customDistanceSummary() {
+        let input = PaceInput(mode: .time, event: .custom, customValue: "12.5", customUnit: .km, hours: "1", minutes: "00", seconds: "00")
+        #expect(input.summary == "12.5km 1:00:00")
+        #expect(input.resultText == "4'48\"0/km")
+    }
+
+    @Test func incompleteInputHasNoResult() {
+        let input = PaceInput(mode: .time, event: .full)
+        #expect(input.result == nil)
+        #expect(input.resultText == nil)
+        #expect(input.summary == "フル")
+    }
+
+    @Test func storeRoundTrip() {
+        let favorites = [
+            Favorite(name: "5000m 自己ベスト", input: PaceInput(mode: .time, event: .m5000, minutes: "16", seconds: "40", tenths: "5")),
+            Favorite(name: "フル 目標", input: PaceInput(mode: .pace, event: .full, paceMinutes: "4", paceSeconds: "15")),
+        ]
+        #expect(FavoriteStore.decode(FavoriteStore.encode(favorites)) == favorites)
+    }
+
+    @Test func storeToleratesEmptyAndBrokenData() {
+        #expect(FavoriteStore.decode(Data()).isEmpty)
+        #expect(FavoriteStore.decode(Data("not json".utf8)).isEmpty)
+    }
+
+    @Test func decodesInputWithMissingKeys() throws {
+        let json = #"[{"id":"7F1C2E4A-1B2C-4D5E-8F90-123456789ABC","name":"古い形式","input":{"mode":"time","event":"m400","seconds":"58"}}]"#
+        let favorites = FavoriteStore.decode(Data(json.utf8))
+        #expect(favorites.count == 1)
+        let input = try #require(favorites.first?.input)
+        #expect(input.event == .m400)
+        #expect(input.tenths == "")
+        #expect(input.paceUnit == .km)
+        #expect(input.result?.seconds == 58)
     }
 }
