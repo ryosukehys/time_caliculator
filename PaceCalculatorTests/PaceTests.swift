@@ -26,6 +26,14 @@ struct PaceMathTests {
         #expect(TimeFormat.clock(PaceMath.time(meters: 42195, secPerKm: pace)) == "3:00:00")
     }
 
+    @Test func perKmPaceWithTenths() {
+        // 5000m 17:03 → 204.6 秒/km
+        let pace = PaceMath.pace(meters: 5000, seconds: 17 * 60 + 3)
+        #expect(TimeFormat.pace(pace, decimals: 1) == "3'24\"6")
+        // フル 3:00:00 → 255.95 秒/km
+        #expect(TimeFormat.pace(PaceMath.pace(meters: 42195, seconds: 3 * 3600), decimals: 1) == "4'16\"0")
+    }
+
     @Test func halfAt4MinPace() {
         #expect(TimeFormat.clock(PaceMath.time(meters: 21097.5, secPerKm: 240)) == "1:24:23")
     }
