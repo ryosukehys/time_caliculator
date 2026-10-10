@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum CalcMode: String, CaseIterable, Identifiable {
+enum CalcMode: String, CaseIterable, Identifiable, Codable {
     case time, pace
 
     var id: String { rawValue }
@@ -13,13 +13,13 @@ enum CalcMode: String, CaseIterable, Identifiable {
     }
 }
 
-enum DistanceUnit: String, CaseIterable, Identifiable {
+enum DistanceUnit: String, CaseIterable, Identifiable, Codable {
     case km, m
 
     var id: String { rawValue }
 }
 
-enum PaceUnit: String, CaseIterable, Identifiable {
+enum PaceUnit: String, CaseIterable, Identifiable, Codable {
     case km, lap400
 
     var id: String { rawValue }
@@ -57,7 +57,12 @@ struct ContentView: View {
     @AppStorage("paceUnit") private var paceUnit: PaceUnit = .km
     /// 0 は「距離に応じて自動」
     @AppStorage("splitInterval") private var splitInterval: Double = 0
+    @AppStorage("favorites") private var favoritesData = Data()
     @FocusState private var focus: InputField?
+    @State private var showingFavorites = false
+    @State private var showingSaveAlert = false
+    @State private var newFavoriteName = ""
+    @State private var savedCount = 0
 
     var body: some View {
         NavigationStack {
@@ -76,7 +81,11 @@ struct ContentView: View {
                         result: result,
                         mode: mode,
                         paceUnit: paceUnit,
-                        splitInterval: $splitInterval
+                        splitInterval: $splitInterval,
+                        onSave: {
+                            newFavoriteName = input.summary
+                            showingSaveAlert = true
+                        }
                     )
                 }
                 .padding(.horizontal, 16)
@@ -86,6 +95,9 @@ struct ContentView: View {
             .background(Color(.systemGroupedBackground))
             .navigationTitle("ペース計算")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showingFavorites = true } label: { Label("お気に入り", systemImage: "star") }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("クリア", action: clear)
                 }
@@ -105,6 +117,17 @@ struct ContentView: View {
             .onChange(of: paceSeconds) { _, v in handleInput(v, field: .paceSeconds, maxLength: 2) { paceSeconds = $0 } }
             .onChange(of: paceTenths) { _, v in handleInput(v, field: .paceTenths, maxLength: 1) { paceTenths = $0 } }
             .onAppear(perform: migrateDecimalSeconds)
+            .sheet(isPresented: $showingFavorites) {
+                FavoritesView(favorites: favorites) { apply($0.input) }
+            }
+            .alert("お気に入りに保存", isPresented: $showingSaveAlert) {
+                TextField("名前", text: $newFavoriteName)
+                Button("保存", action: saveFavorite)
+                Button("キャンセル", role: .cancel) {}
+            } message: {
+                Text("左上の ☆ からいつでも呼び出せます")
+            }
+            .sensoryFeedback(.success, trigger: savedCount)
         }
     }
 
@@ -187,36 +210,53 @@ struct ContentView: View {
 
     // MARK: - 計算
 
-    private var meters: Double? {
-        if let m = event.meters { return m }
-        guard let v = Double(customValue), v > 0 else { return nil }
-        return customUnit == .km ? v * 1000 : v
+    private var input: PaceInput {
+        PaceInput(
+            mode: mode, event: event, customValue: customValue, customUnit: customUnit,
+            hours: hours, minutes: minutes, seconds: seconds, tenths: tenths,
+            paceMinutes: paceMinutes, paceSeconds: paceSeconds, paceTenths: paceTenths, paceUnit: paceUnit
+        )
     }
 
-    /// 1時間を超えうる距離だけ「時間」欄を出す
-    private var showsHours: Bool {
-        event == .custom || (meters ?? 0) >= 10000
+    private var meters: Double? { input.meters }
+    private var showsHours: Bool { input.showsHours }
+    private var showsTenths: Bool { input.showsTenths }
+    private var showsPaceTenths: Bool { input.showsPaceTenths }
+    private var result: PaceResult? { input.result }
+
+    // MARK: - お気に入り
+
+    private var favorites: Binding<[Favorite]> {
+        Binding(
+            get: { FavoriteStore.decode(favoritesData) },
+            set: { favoritesData = FavoriteStore.encode($0) }
+        )
     }
 
-    /// トラック種目（時間欄なし）だけ 1/10 秒欄を出す
-    private var showsTenths: Bool { !showsHours }
+    private func saveFavorite() {
+        let name = newFavoriteName.trimmingCharacters(in: .whitespacesAndNewlines)
+        var list = FavoriteStore.decode(favoritesData)
+        list.insert(Favorite(name: name.isEmpty ? input.summary : name, input: input), at: 0)
+        favoritesData = FavoriteStore.encode(list)
+        savedCount += 1
+    }
 
-    /// 400m ラップ指定のときだけ 1/10 秒欄を出す
-    private var showsPaceTenths: Bool { paceUnit == .lap400 }
-
-    private var result: PaceResult? {
-        guard let meters else { return nil }
-        switch mode {
-        case .time:
-            let sec = PaceMath.joinTenths(seconds, showsTenths ? tenths : "")
-            guard let total = PaceMath.parseHMS(showsHours ? hours : "", minutes, sec) else { return nil }
-            return PaceResult(meters: meters, seconds: total, secPerKm: PaceMath.pace(meters: meters, seconds: total))
-        case .pace:
-            let sec = PaceMath.joinTenths(paceSeconds, showsPaceTenths ? paceTenths : "")
-            guard let pace = PaceMath.parseHMS("", paceMinutes, sec) else { return nil }
-            let secPerKm = paceUnit == .km ? pace : pace * 2.5
-            return PaceResult(meters: meters, seconds: PaceMath.time(meters: meters, secPerKm: secPerKm), secPerKm: secPerKm)
-        }
+    /// 保存しておいた入力内容を画面に戻す
+    private func apply(_ saved: PaceInput) {
+        focus = nil
+        mode = saved.mode
+        event = saved.event
+        customValue = saved.customValue
+        customUnit = saved.customUnit
+        hours = saved.hours
+        minutes = saved.minutes
+        seconds = saved.seconds
+        tenths = saved.tenths
+        paceMinutes = saved.paceMinutes
+        paceSeconds = saved.paceSeconds
+        paceTenths = saved.paceTenths
+        paceUnit = saved.paceUnit
+        splitInterval = 0
     }
 
     // MARK: - 入力操作

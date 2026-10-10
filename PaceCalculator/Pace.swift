@@ -2,7 +2,7 @@ import Foundation
 
 // ランニングのペース計算ロジック（UI に依存しない純粋関数のみ）
 
-enum RaceEvent: String, CaseIterable, Identifiable {
+enum RaceEvent: String, CaseIterable, Identifiable, Codable {
     case m400, m800, m1500, m3000, m5000, m10000, half, full, custom
 
     var id: String { rawValue }
