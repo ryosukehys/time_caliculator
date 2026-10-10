@@ -48,7 +48,7 @@ struct ResultsView: View {
     @ViewBuilder
     private func heroes(_ r: PaceResult) -> some View {
         let per400 = r.secPerKm * 0.4
-        let kmHero = Hero(title: "1kmあたり", value: TimeFormat.pace(r.secPerKm), sub: "/km")
+        let kmHero = Hero(title: "1kmあたり", value: TimeFormat.pace(r.secPerKm, decimals: 1), sub: "/km")
         let lapHero = Hero(title: "400mあたり", value: TimeFormat.pace(per400, decimals: 1),
                            sub: String(format: "%.1f秒", per400))
         switch mode {
