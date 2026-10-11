@@ -3,14 +3,15 @@ import SwiftUI
 struct FavoritesView: View {
     @Binding var favorites: [Favorite]
     let onSelect: (Favorite) -> Void
+    let onClose: () -> Void
 
-    @Environment(\.dismiss) private var dismiss
     @State private var renamingID: Favorite.ID?
     @State private var renameText = ""
 
-    init(favorites: Binding<[Favorite]>, onSelect: @escaping (Favorite) -> Void) {
+    init(favorites: Binding<[Favorite]>, onSelect: @escaping (Favorite) -> Void, onClose: @escaping () -> Void) {
         _favorites = favorites
         self.onSelect = onSelect
+        self.onClose = onClose
     }
 
     var body: some View {
@@ -27,7 +28,6 @@ struct FavoritesView: View {
                         ForEach(favorites) { favorite in
                             Button {
                                 onSelect(favorite)
-                                dismiss()
                             } label: {
                                 FavoriteRow(favorite: favorite)
                             }
@@ -51,7 +51,7 @@ struct FavoritesView: View {
                     if !favorites.isEmpty { EditButton() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("閉じる") { dismiss() }
+                    Button("閉じる", action: onClose)
                 }
             }
             .alert("名前を変更", isPresented: isRenaming) {
