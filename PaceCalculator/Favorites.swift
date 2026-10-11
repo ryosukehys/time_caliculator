@@ -72,6 +72,15 @@ struct PaceInput: Codable, Equatable {
     }
 }
 
+extension PaceInput {
+    /// 同じ計算か。「05」と「5」のような書き方の違いや、距離入力の 5km と 5000m は同じとみなす
+    func isSameCalculation(as other: PaceInput) -> Bool {
+        guard mode == other.mode, let a = result, let b = other.result else { return false }
+        if mode == .pace && paceUnit != other.paceUnit { return false }
+        return abs(a.meters - b.meters) < 0.001 && abs(a.seconds - b.seconds) < 0.001
+    }
+}
+
 // 項目を後から増やしても、以前に保存したお気に入りを読めるようにする
 extension PaceInput {
     init(from decoder: Decoder) throws {
