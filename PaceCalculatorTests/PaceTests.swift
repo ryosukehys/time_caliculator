@@ -253,3 +253,53 @@ struct SameCalculationTests {
     }
 }
 
+struct TimeStepTests {
+    private func step(_ delta: Int, _ m: String, _ s: String, _ t: String = "", hours h: String = "",
+                      usesHours: Bool = false, usesTenths: Bool = false) -> TimeStep.Fields {
+        TimeStep.apply(delta, to: .init(hours: h, minutes: m, seconds: s, tenths: t), usesHours: usesHours, usesTenths: usesTenths)
+    }
+
+    @Test func labels() {
+        #expect(TimeStep.label(1, sign: .plus) == "+1秒")
+        #expect(TimeStep.label(10, sign: .minus) == "−10秒")
+        #expect(TimeStep.label(60, sign: .plus) == "+1分")
+        #expect(TimeStep.label(300, sign: .minus) == "−5分")
+        #expect(StepSign.minus.multiplier == -1 && StepSign.plus.multiplier == 1)
+    }
+
+    @Test func carriesSecondsIntoMinutes() {
+        #expect(step(10, "16", "55") == .init(minutes: "17", seconds: "05"))
+        #expect(step(-10, "17", "05") == .init(minutes: "16", seconds: "55"))
+        #expect(step(300, "16", "40") == .init(minutes: "21", seconds: "40"))
+    }
+
+    @Test func emptyFieldsStartFromZero() {
+        #expect(step(60, "", "") == .init(minutes: "1", seconds: "00"))
+    }
+
+    @Test func neverBelowZero() {
+        #expect(step(-10, "0", "05") == .init(minutes: "0", seconds: "00"))
+        #expect(step(-300, "", "") == .init(minutes: "0", seconds: "00"))
+    }
+
+    @Test func keepsTenths() {
+        #expect(step(1, "1", "20", "5", usesTenths: true) == .init(minutes: "1", seconds: "21", tenths: "5"))
+        // 1/10 秒欄が空なら空のまま
+        #expect(step(1, "1", "20", "", usesTenths: true) == .init(minutes: "1", seconds: "21", tenths: ""))
+        // 使っていない 1/10 秒欄には触らない
+        #expect(step(1, "16", "40", "7") == .init(minutes: "16", seconds: "41", tenths: "7"))
+    }
+
+    @Test func hours() {
+        #expect(step(60, "59", "30", usesHours: true) == .init(hours: "1", minutes: "00", seconds: "30"))
+        #expect(step(-300, "02", "00", hours: "1", usesHours: true) == .init(hours: "", minutes: "57", seconds: "00"))
+        // 時間欄を出していないときは時間欄を無視して残す
+        #expect(step(60, "59", "30", hours: "3") == .init(hours: "3", minutes: "60", seconds: "30"))
+    }
+
+    @Test func clampsToFieldLimits() {
+        #expect(step(300, "99", "00") == .init(minutes: "99", seconds: "59"))
+        #expect(step(60, "99", "30", "", usesTenths: true) == .init(minutes: "99", seconds: "59", tenths: "9"))
+        #expect(step(300, "59", "00", hours: "99", usesHours: true) == .init(hours: "99", minutes: "59", seconds: "59"))
+    }
+}

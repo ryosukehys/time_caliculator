@@ -198,6 +198,59 @@ enum DistanceStep {
     }
 }
 
+/// 増減ボタンの向き。先に「−／＋」を選び、あとは幅のボタンを押していく
+enum StepSign: String, CaseIterable, Identifiable {
+    case minus, plus
+
+    var id: String { rawValue }
+    var symbol: String { self == .minus ? "−" : "+" }
+    var multiplier: Int { self == .minus ? -1 : 1 }
+}
+
+/// タイム・ペース入力を秒・分単位で増減するボタンの計算
+enum TimeStep {
+    /// ボタンの幅（秒）
+    static let timeSteps = [1, 10, 60, 300]
+    static let paceSteps = [1, 5, 10, 60]
+
+    static func label(_ seconds: Int, sign: StepSign) -> String {
+        sign.symbol + (seconds >= 60 ? "\(seconds / 60)分" : "\(seconds)秒")
+    }
+
+    /// 時間・分・秒・1/10 秒の入力欄
+    struct Fields: Equatable {
+        var hours = ""
+        var minutes = ""
+        var seconds = ""
+        var tenths = ""
+    }
+
+    /// 入力中のタイムに seconds を足した欄の値を返す（0 未満・入力欄の上限超えにはしない）。
+    /// 使っていない欄（usesHours / usesTenths が false）はそのまま残す
+    static func apply(_ seconds: Int, to fields: Fields, usesHours: Bool, usesTenths: Bool) -> Fields {
+        func value(_ s: String) -> Int { Int(s) ?? 0 }
+        // 0.1 秒単位の整数で計算する
+        let current = (usesHours ? value(fields.hours) * 36000 : 0) + value(fields.minutes) * 600
+            + value(fields.seconds) * 10 + (usesTenths ? value(fields.tenths) : 0)
+        let maxTotal = usesHours ? (99 * 3600 + 59 * 60 + 59) * 10 : (99 * 60 + 59) * 10 + (usesTenths ? 9 : 0)
+        let total = min(max(0, current + seconds * 10), maxTotal)
+        let h = usesHours ? total / 36000 : 0
+        let m = (total - h * 36000) / 600
+        let s = total % 600 / 10
+        let t = total % 10
+        var out = fields
+        if usesHours { out.hours = h > 0 ? String(h) : "" }
+        out.minutes = h > 0 ? pad(m) : String(m)
+        out.seconds = pad(s)
+        if usesTenths && !(fields.tenths.isEmpty && t == 0) { out.tenths = String(t) }
+        return out
+    }
+
+    private static func pad(_ n: Int) -> String {
+        n < 10 ? "0\(n)" : String(n)
+    }
+}
+
 enum InputFilter {
     /// 数字だけを残し、最大文字数で切る
     static func digits(_ value: String, maxLength: Int) -> String {
