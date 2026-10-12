@@ -265,6 +265,10 @@ struct TimeStepTests {
         #expect(TimeStep.label(60, sign: .plus) == "+1分")
         #expect(TimeStep.label(300, sign: .minus) == "−5分")
         #expect(StepSign.minus.multiplier == -1 && StepSign.plus.multiplier == 1)
+        // 足し算が左、数字は左ほど大きい
+        #expect(StepSign.allCases == [.plus, .minus])
+        #expect(TimeStep.timeSteps == [300, 60, 10, 1])
+        #expect(TimeStep.paceSteps == [60, 10, 5, 1])
     }
 
     @Test func carriesSecondsIntoMinutes() {

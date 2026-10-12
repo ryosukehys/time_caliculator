@@ -198,9 +198,10 @@ enum DistanceStep {
     }
 }
 
-/// 増減ボタンの向き。先に「−／＋」を選び、あとは幅のボタンを押していく
+/// 増減ボタンの向き。先に「＋／−」を選び、あとは幅のボタンを押していく
 enum StepSign: String, CaseIterable, Identifiable {
-    case minus, plus
+    // 並び順がそのまま画面の左→右（足し算が左）
+    case plus, minus
 
     var id: String { rawValue }
     var symbol: String { self == .minus ? "−" : "+" }
@@ -209,9 +210,9 @@ enum StepSign: String, CaseIterable, Identifiable {
 
 /// タイム・ペース入力を秒・分単位で増減するボタンの計算
 enum TimeStep {
-    /// ボタンの幅（秒）
-    static let timeSteps = [1, 10, 60, 300]
-    static let paceSteps = [1, 5, 10, 60]
+    /// ボタンの幅（秒）。左ほど大きい
+    static let timeSteps = [300, 60, 10, 1]
+    static let paceSteps = [60, 10, 5, 1]
 
     static func label(_ seconds: Int, sign: StepSign) -> String {
         sign.symbol + (seconds >= 60 ? "\(seconds / 60)分" : "\(seconds)秒")

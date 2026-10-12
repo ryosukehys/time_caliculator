@@ -555,7 +555,7 @@ struct NumberBox: View {
     }
 }
 
-/// 「−／＋」を選んでから幅のボタンを押していく増減バー（長押しで連続）
+/// 「＋／−」を選んでから幅のボタンを押していく増減バー（長押しで連続）
 struct StepBar: View {
     @Binding var sign: StepSign
     let steps: [Int]
