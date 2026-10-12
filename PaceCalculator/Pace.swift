@@ -214,6 +214,16 @@ enum TimeStep {
     static let timeSteps = [300, 60, 10, 1]
     static let paceSteps = [60, 10, 5, 1]
 
+    /// 長押しで幅を上げていく段（秒）
+    static let ladder = [1, 5, 10, 30, 60, 300, 600]
+
+    /// 長押しで連続 repeats 回目に足し引きする幅。5 回ごとに 1 段上げ、ボタンの幅から 2 段上まで
+    static func accelerated(_ step: Int, repeats: Int) -> Int {
+        guard let start = ladder.firstIndex(of: step) else { return step }
+        let index = min(start + min(max(0, repeats) / 5, 2), ladder.count - 1)
+        return ladder[index]
+    }
+
     static func label(_ seconds: Int, sign: StepSign) -> String {
         sign.symbol + (seconds >= 60 ? "\(seconds / 60)分" : "\(seconds)秒")
     }

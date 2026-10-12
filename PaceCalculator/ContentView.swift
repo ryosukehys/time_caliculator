@@ -555,11 +555,15 @@ struct NumberBox: View {
     }
 }
 
-/// 「＋／−」を選んでから幅のボタンを押していく増減バー（長押しで連続）
+/// 「＋／−」を選んでから幅のボタンを押していく増減バー。長押しで連続し、押し続けるほど幅が大きくなる
 struct StepBar: View {
     @Binding var sign: StepSign
     let steps: [Int]
     let action: (Int) -> Void
+
+    /// 押している最中のボタンと、その押下での連続回数
+    @State private var pressedStep: Int?
+    @State private var repeats = 0
 
     var body: some View {
         HStack(spacing: 6) {
@@ -570,8 +574,13 @@ struct StepBar: View {
             .frame(width: 84)
             .accessibilityLabel(sign == .plus ? "増やす" : "減らす")
             ForEach(steps, id: \.self) { step in
-                Button { action(step * sign.multiplier) } label: {
-                    Text(TimeStep.label(step, sign: sign))
+                // 押している間は、次に足し引きする幅をラベルに出す
+                let amount = pressedStep == step ? TimeStep.accelerated(step, repeats: repeats) : step
+                Button {
+                    action(TimeStep.accelerated(step, repeats: repeats) * sign.multiplier)
+                    repeats += 1
+                } label: {
+                    Text(TimeStep.label(amount, sign: sign))
                         .font(.subheadline.weight(.semibold))
                         .monospacedDigit()
                         .lineLimit(1)
@@ -580,10 +589,29 @@ struct StepBar: View {
                         .frame(maxWidth: .infinity, minHeight: 36)
                         .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PressReportingStyle { pressed in
+                    if pressed {
+                        pressedStep = step
+                        repeats = 0
+                    } else if pressedStep == step {
+                        pressedStep = nil
+                    }
+                })
                 .buttonRepeatBehavior(.enabled)
+                .accessibilityLabel(TimeStep.label(step, sign: sign))
             }
         }
+    }
+}
+
+/// 押した・離したを知らせるボタンスタイル（長押しの加速を、指を離したらリセットするため）
+struct PressReportingStyle: ButtonStyle {
+    let onPressChange: (Bool) -> Void
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.6 : 1)
+            .onChange(of: configuration.isPressed) { _, pressed in onPressChange(pressed) }
     }
 }
 

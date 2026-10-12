@@ -271,6 +271,22 @@ struct TimeStepTests {
         #expect(TimeStep.paceSteps == [60, 10, 5, 1])
     }
 
+    @Test func longPressAccelerates() {
+        // 1秒 → 5回ごとに 5秒 → 10秒 で頭打ち
+        #expect((0..<5).allSatisfy { TimeStep.accelerated(1, repeats: $0) == 1 })
+        #expect(TimeStep.accelerated(1, repeats: 5) == 5)
+        #expect(TimeStep.accelerated(1, repeats: 10) == 10)
+        #expect(TimeStep.accelerated(1, repeats: 100) == 10)
+        #expect(TimeStep.accelerated(10, repeats: 10) == 60)
+        #expect(TimeStep.accelerated(60, repeats: 5) == 300)
+        // 5分は 10分 が上限
+        #expect(TimeStep.accelerated(300, repeats: 100) == 600)
+        // すべてのボタンの幅が段に載っている
+        #expect((TimeStep.timeSteps + TimeStep.paceSteps).allSatisfy { TimeStep.ladder.contains($0) })
+        #expect(TimeStep.label(600, sign: .plus) == "+10分")
+        #expect(TimeStep.label(30, sign: .minus) == "−30秒")
+    }
+
     @Test func carriesSecondsIntoMinutes() {
         #expect(step(10, "16", "55") == .init(minutes: "17", seconds: "05"))
         #expect(step(-10, "17", "05") == .init(minutes: "16", seconds: "55"))
