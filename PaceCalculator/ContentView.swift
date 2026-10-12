@@ -55,6 +55,7 @@ struct ContentView: View {
     @AppStorage("paceSeconds") private var paceSeconds = ""
     @AppStorage("paceTenths") private var paceTenths = ""
     @AppStorage("paceUnit") private var paceUnit: PaceUnit = .km
+    @AppStorage("stepSign") private var stepSign: StepSign = .plus
     /// 0 は「距離に応じて自動」
     @AppStorage("splitInterval") private var splitInterval: Double = 0
     @AppStorage("favorites") private var favoritesData = Data()
@@ -240,6 +241,7 @@ struct ContentView: View {
                     NumberBox(text: $tenths, unit: "1/10秒", placeholder: "0", compact: true, focus: $focus, field: .tenths)
                 }
             }
+            StepBar(sign: $stepSign, steps: TimeStep.timeSteps, action: stepTime)
         }
     }
 
@@ -265,6 +267,7 @@ struct ContentView: View {
                     NumberBox(text: $paceTenths, unit: "1/10秒", placeholder: "0", compact: true, focus: $focus, field: .paceTenths)
                 }
             }
+            StepBar(sign: $stepSign, steps: TimeStep.paceSteps, action: stepPace)
         }
     }
 
@@ -431,6 +434,26 @@ struct ContentView: View {
         moveFocus(by: 1)
     }
 
+    /// タイムを delta 秒だけ増減する（キーボードは閉じる。桁埋まりで次の欄へ飛ばないように）
+    private func stepTime(_ delta: Int) {
+        focus = nil
+        let next = TimeStep.apply(delta, to: .init(hours: hours, minutes: minutes, seconds: seconds, tenths: tenths),
+                                  usesHours: showsHours, usesTenths: showsTenths)
+        hours = next.hours
+        minutes = next.minutes
+        seconds = next.seconds
+        tenths = next.tenths
+    }
+
+    private func stepPace(_ delta: Int) {
+        focus = nil
+        let next = TimeStep.apply(delta, to: .init(minutes: paceMinutes, seconds: paceSeconds, tenths: paceTenths),
+                                  usesHours: false, usesTenths: showsPaceTenths)
+        paceMinutes = next.minutes
+        paceSeconds = next.seconds
+        paceTenths = next.tenths
+    }
+
     /// 以前のバージョンで保存した "30.5" 形式の秒を、秒と 1/10 秒に分ける
     private func migrateDecimalSeconds() {
         for (sec, tenth) in [($seconds, $tenths), ($paceSeconds, $paceTenths)] {
@@ -529,6 +552,66 @@ struct NumberBox: View {
                 .fixedSize()
         }
         .frame(maxWidth: compact ? CGFloat(60) : CGFloat.infinity)
+    }
+}
+
+/// 「＋／−」を選んでから幅のボタンを押していく増減バー。長押しで連続し、押し続けるほど幅が大きくなる
+struct StepBar: View {
+    @Binding var sign: StepSign
+    let steps: [Int]
+    let action: (Int) -> Void
+
+    /// 押している最中のボタンと、その押下での連続回数
+    @State private var pressedStep: Int?
+    @State private var repeats = 0
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Picker("増減", selection: $sign) {
+                ForEach(StepSign.allCases) { Text($0.symbol).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 84)
+            .accessibilityLabel(sign == .plus ? "増やす" : "減らす")
+            ForEach(steps, id: \.self) { step in
+                // 押している間は、次に足し引きする幅をラベルに出す
+                let amount = pressedStep == step ? TimeStep.accelerated(step, repeats: repeats) : step
+                Button {
+                    action(TimeStep.accelerated(step, repeats: repeats) * sign.multiplier)
+                    repeats += 1
+                } label: {
+                    Text(TimeStep.label(amount, sign: sign))
+                        .font(.subheadline.weight(.semibold))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .foregroundStyle(Color.accentColor)
+                        .frame(maxWidth: .infinity, minHeight: 36)
+                        .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(PressReportingStyle { pressed in
+                    if pressed {
+                        pressedStep = step
+                        repeats = 0
+                    } else if pressedStep == step {
+                        pressedStep = nil
+                    }
+                })
+                .buttonRepeatBehavior(.enabled)
+                .accessibilityLabel(TimeStep.label(step, sign: sign))
+            }
+        }
+    }
+}
+
+/// 押した・離したを知らせるボタンスタイル（長押しの加速を、指を離したらリセットするため）
+struct PressReportingStyle: ButtonStyle {
+    let onPressChange: (Bool) -> Void
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.6 : 1)
+            .onChange(of: configuration.isPressed) { _, pressed in onPressChange(pressed) }
     }
 }
 
