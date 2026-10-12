@@ -6,19 +6,23 @@ struct ResultsView: View {
     let mode: CalcMode
     let paceUnit: PaceUnit
     @Binding var splitInterval: Double
-    var onSave: (() -> Void)? = nil
+    var isFavorite = false
+    var onToggleFavorite: (() -> Void)? = nil
 
     var body: some View {
         if let result {
             VStack(spacing: 12) {
                 HStack(spacing: 10) { heroes(result) }
-                if let onSave {
-                    Button(action: onSave) {
-                        Label("お気に入りに保存", systemImage: "star")
+                if let onToggleFavorite {
+                    Button(action: onToggleFavorite) {
+                        Label(isFavorite ? "お気に入りに登録済み" : "お気に入りに追加",
+                              systemImage: isFavorite ? "star.fill" : "star")
                             .font(.subheadline.weight(.semibold))
                             .frame(maxWidth: .infinity)
+                            .contentTransition(.symbolEffect(.replace))
                     }
                     .buttonStyle(.bordered)
+                    .accessibilityHint(isFavorite ? "タップするとお気に入りから外します" : "タップするとお気に入りに追加します")
                 }
                 Card {
                     HStack(alignment: .top) {
