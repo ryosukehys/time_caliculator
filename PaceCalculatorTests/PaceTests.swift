@@ -210,6 +210,8 @@ struct DistanceStepTests {
 
     @Test func labels() {
         #expect(DistanceStep.steps.map(DistanceStep.label) == ["−1km", "−100m", "+100m", "+1km"])
+    }
+}
 
 struct SameCalculationTests {
     @Test func sameValuesWrittenDifferently() {
