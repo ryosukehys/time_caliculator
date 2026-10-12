@@ -169,6 +169,35 @@ enum TimeFormat {
     }
 }
 
+/// 距離入力を 1km・100m 単位で増減するボタンの計算
+enum DistanceStep {
+    /// ボタンの並び（m 単位）
+    static let steps: [Double] = [-1000, -100, 100, 1000]
+
+    static func label(_ meters: Double) -> String {
+        let sign = meters < 0 ? "−" : "+"
+        let size = abs(meters)
+        return size >= 1000 ? "\(sign)\(Int(size / 1000))km" : "\(sign)\(Int(size))m"
+    }
+
+    /// 入力中の距離に meters を足した値を、同じ単位の文字列で返す（0 未満にはしない）
+    static func apply(_ meters: Double, to value: String, unit: DistanceUnit) -> String {
+        let current = Double(value) ?? 0
+        let currentMeters = unit == .km ? current * 1000 : current
+        let next = max(0, currentMeters + meters)
+        let shown = unit == .km ? next / 1000 : next
+        return trimZeros(String(format: "%.4f", shown))
+    }
+
+    private static func trimZeros(_ s: String) -> String {
+        guard s.contains(".") else { return s }
+        var t = s
+        while t.hasSuffix("0") { t.removeLast() }
+        if t.hasSuffix(".") { t.removeLast() }
+        return t
+    }
+}
+
 enum InputFilter {
     /// 数字だけを残し、最大文字数で切る
     static func digits(_ value: String, maxLength: Int) -> String {

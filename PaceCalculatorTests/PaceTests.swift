@@ -188,3 +188,28 @@ struct DrawerSwipeTests {
     }
 }
 
+struct DistanceStepTests {
+    @Test func kilometers() {
+        #expect(DistanceStep.apply(100, to: "12.5", unit: .km) == "12.6")
+        #expect(DistanceStep.apply(-1000, to: "12.5", unit: .km) == "11.5")
+        #expect(DistanceStep.apply(100, to: "42.195", unit: .km) == "42.295")
+        #expect(DistanceStep.apply(1000, to: "", unit: .km) == "1")
+    }
+
+    @Test func meters() {
+        #expect(DistanceStep.apply(100, to: "400", unit: .m) == "500")
+        #expect(DistanceStep.apply(-1000, to: "1500", unit: .m) == "500")
+        #expect(DistanceStep.apply(1000, to: "", unit: .m) == "1000")
+    }
+
+    @Test func neverBelowZero() {
+        #expect(DistanceStep.apply(-100, to: "0.05", unit: .km) == "0")
+        #expect(DistanceStep.apply(-1000, to: "300", unit: .m) == "0")
+        #expect(DistanceStep.apply(-100, to: "", unit: .m) == "0")
+    }
+
+    @Test func labels() {
+        #expect(DistanceStep.steps.map(DistanceStep.label) == ["−1km", "−100m", "+100m", "+1km"])
+    }
+}
+

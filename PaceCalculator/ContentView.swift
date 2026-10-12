@@ -197,6 +197,20 @@ struct ContentView: View {
                     .frame(width: 110)
                     .onChange(of: customUnit) { _, _ in splitInterval = 0 }
                 }
+                HStack(spacing: 8) {
+                    ForEach(DistanceStep.steps, id: \.self) { delta in
+                        Button {
+                            customValue = DistanceStep.apply(delta, to: customValue, unit: customUnit)
+                        } label: {
+                            Text(DistanceStep.label(delta))
+                                .font(.subheadline.weight(.semibold))
+                                .monospacedDigit()
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .buttonRepeatBehavior(.enabled)
+                    }
+                }
             }
         }
     }
