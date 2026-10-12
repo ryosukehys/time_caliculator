@@ -60,9 +60,10 @@ struct ContentView: View {
     @AppStorage("favorites") private var favoritesData = Data()
     @FocusState private var focus: InputField?
     @State private var showingFavorites = false
-    @State private var showingSaveAlert = false
-    @State private var newFavoriteName = ""
-    @State private var savedCount = 0
+    @State private var favoriteToast: FavoriteToast?
+    @State private var favoriteChangeCount = 0
+    @State private var renamingID: Favorite.ID?
+    @State private var renameText = ""
     /// お気に入りパネルを指で引き出している量（右が正）
     @State private var drawerDragX: CGFloat = 0
     /// 今のドラッグが横方向か（縦スクロールと区別するため、動き始めで判定）
@@ -121,10 +122,8 @@ struct ContentView: View {
                         mode: mode,
                         paceUnit: paceUnit,
                         splitInterval: $splitInterval,
-                        onSave: {
-                            newFavoriteName = input.summary
-                            showingSaveAlert = true
-                        }
+                        isFavorite: currentFavoriteIndex != nil,
+                        onToggleFavorite: toggleFavorite
                     )
                 }
                 .padding(.horizontal, 16)
@@ -135,7 +134,7 @@ struct ContentView: View {
             .navigationTitle("ペース計算")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button { setDrawer(open: true) } label: { Label("お気に入り", systemImage: "star") }
+                    Button { setDrawer(open: true) } label: { Label("お気に入り一覧", systemImage: "list.star") }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("クリア", action: clear)
@@ -156,14 +155,25 @@ struct ContentView: View {
             .onChange(of: paceSeconds) { _, v in handleInput(v, field: .paceSeconds, maxLength: 2) { paceSeconds = $0 } }
             .onChange(of: paceTenths) { _, v in handleInput(v, field: .paceTenths, maxLength: 1) { paceTenths = $0 } }
             .onAppear(perform: migrateDecimalSeconds)
-            .alert("お気に入りに保存", isPresented: $showingSaveAlert) {
-                TextField("名前", text: $newFavoriteName)
-                Button("保存", action: saveFavorite)
+            .overlay(alignment: .bottom) {
+                if let favoriteToast {
+                    ToastView(toast: favoriteToast) { performToastAction(favoriteToast) }
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .task(id: favoriteToast) {
+                guard favoriteToast != nil else { return }
+                do { try await Task.sleep(for: .seconds(4)) } catch { return }
+                withAnimation { favoriteToast = nil }
+            }
+            .alert("名前を付ける", isPresented: isRenaming) {
+                TextField("名前", text: $renameText)
+                Button("保存", action: renameFavorite)
                 Button("キャンセル", role: .cancel) {}
             } message: {
-                Text("右にスワイプするか、左上の ☆ からいつでも呼び出せます")
+                Text("右にスワイプするか、左上のボタンでお気に入り一覧を開けます")
             }
-            .sensoryFeedback(.success, trigger: savedCount)
+            .sensoryFeedback(.success, trigger: favoriteChangeCount)
         }
     }
 
@@ -316,29 +326,74 @@ struct ContentView: View {
         }
     }
 
-    private func saveFavorite() {
-        let name = newFavoriteName.trimmingCharacters(in: .whitespacesAndNewlines)
-        var list = FavoriteStore.decode(favoritesData)
-        list.insert(Favorite(name: name.isEmpty ? input.summary : name, input: input), at: 0)
-        favoritesData = FavoriteStore.encode(list)
-        savedCount += 1
+    /// 今の入力と同じ計算のお気に入りの位置（未登録なら nil）
+    private var currentFavoriteIndex: Int? {
+        FavoriteStore.decode(favoritesData).firstIndex { $0.input.isSameCalculation(as: input) }
     }
 
-    /// 保存しておいた入力内容を画面に戻す
+    /// ワンタップでお気に入りに追加／登録済みなら外す。名前は要約を自動で付ける
+    private func toggleFavorite() {
+        var list = FavoriteStore.decode(favoritesData)
+        let toast: FavoriteToast
+        if let index = list.firstIndex(where: { $0.input.isSameCalculation(as: input) }) {
+            toast = .removed(list.remove(at: index), index: index)
+        } else {
+            let favorite = Favorite(name: input.summary, input: input)
+            list.insert(favorite, at: 0)
+            toast = .added(favorite)
+        }
+        favoritesData = FavoriteStore.encode(list)
+        favoriteChangeCount += 1
+        withAnimation(.snappy) { favoriteToast = toast }
+    }
+
+    private func performToastAction(_ toast: FavoriteToast) {
+        switch toast {
+        case .added(let favorite):
+            renameText = favorite.name
+            renamingID = favorite.id
+        case .removed(let favorite, let index):
+            var list = FavoriteStore.decode(favoritesData)
+            list.insert(favorite, at: min(index, list.count))
+            favoritesData = FavoriteStore.encode(list)
+        }
+        withAnimation(.snappy) { favoriteToast = nil }
+    }
+
+    private var isRenaming: Binding<Bool> {
+        Binding(get: { renamingID != nil }, set: { if !$0 { renamingID = nil } })
+    }
+
+    private func renameFavorite() {
+        let name = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+        var list = FavoriteStore.decode(favoritesData)
+        guard let id = renamingID, !name.isEmpty,
+              let index = list.firstIndex(where: { $0.id == id }) else { return }
+        list[index].name = name
+        favoritesData = FavoriteStore.encode(list)
+    }
+
+    /// 保存しておいた入力内容を画面に戻す。そのモードで使う欄だけを書き換え、もう一方のモードの入力は残す
     private func apply(_ saved: PaceInput) {
         focus = nil
         mode = saved.mode
         event = saved.event
-        customValue = saved.customValue
-        customUnit = saved.customUnit
-        hours = saved.hours
-        minutes = saved.minutes
-        seconds = saved.seconds
-        tenths = saved.tenths
-        paceMinutes = saved.paceMinutes
-        paceSeconds = saved.paceSeconds
-        paceTenths = saved.paceTenths
-        paceUnit = saved.paceUnit
+        if saved.event == .custom {
+            customValue = saved.customValue
+            customUnit = saved.customUnit
+        }
+        switch saved.mode {
+        case .time:
+            hours = saved.hours
+            minutes = saved.minutes
+            seconds = saved.seconds
+            tenths = saved.tenths
+        case .pace:
+            paceMinutes = saved.paceMinutes
+            paceSeconds = saved.paceSeconds
+            paceTenths = saved.paceTenths
+            paceUnit = saved.paceUnit
+        }
         splitInterval = 0
     }
 

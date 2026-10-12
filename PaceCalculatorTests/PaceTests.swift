@@ -210,6 +210,44 @@ struct DistanceStepTests {
 
     @Test func labels() {
         #expect(DistanceStep.steps.map(DistanceStep.label) == ["−1km", "−100m", "+100m", "+1km"])
+
+struct SameCalculationTests {
+    @Test func sameValuesWrittenDifferently() {
+        let a = PaceInput(mode: .time, event: .m5000, minutes: "16", seconds: "05")
+        let b = PaceInput(mode: .time, event: .m5000, minutes: "16", seconds: "5")
+        #expect(a.isSameCalculation(as: b))
+    }
+
+    @Test func customDistanceMatchesEvent() {
+        let event = PaceInput(mode: .time, event: .m5000, minutes: "20", seconds: "00")
+        let custom = PaceInput(mode: .time, event: .custom, customValue: "5", customUnit: .km, minutes: "20", seconds: "00")
+        #expect(event.isSameCalculation(as: custom))
+    }
+
+    @Test func differentCalculations() {
+        let base = PaceInput(mode: .time, event: .m5000, minutes: "16", seconds: "40")
+        #expect(!base.isSameCalculation(as: PaceInput(mode: .time, event: .m5000, minutes: "16", seconds: "41")))
+        #expect(!base.isSameCalculation(as: PaceInput(mode: .time, event: .m3000, minutes: "16", seconds: "40")))
+        #expect(!base.isSameCalculation(as: PaceInput(mode: .pace, event: .m5000, paceMinutes: "3", paceSeconds: "20")))
+    }
+
+    @Test func paceUnitMatters() {
+        let km = PaceInput(mode: .pace, event: .half, paceMinutes: "4", paceSeconds: "00", paceUnit: .km)
+        let lap = PaceInput(mode: .pace, event: .half, paceMinutes: "1", paceSeconds: "36", paceTenths: "0", paceUnit: .lap400)
+        #expect(!km.isSameCalculation(as: lap))
+        #expect(km.isSameCalculation(as: km))
+    }
+
+    @Test func incompleteInputNeverMatches() {
+        let empty = PaceInput(mode: .time, event: .m5000)
+        #expect(!empty.isSameCalculation(as: empty))
+    }
+
+    @Test func toastTexts() {
+        let favorite = Favorite(name: "5000m 16:40.0", input: PaceInput())
+        #expect(FavoriteToast.added(favorite).message == "「5000m 16:40.0」をお気に入りに追加しました")
+        #expect(FavoriteToast.added(favorite).actionTitle == "名前を付ける")
+        #expect(FavoriteToast.removed(favorite, index: 0).actionTitle == "元に戻す")
     }
 }
 

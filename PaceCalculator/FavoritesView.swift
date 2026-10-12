@@ -21,7 +21,7 @@ struct FavoritesView: View {
                     ContentUnavailableView(
                         "お気に入りはまだありません",
                         systemImage: "star",
-                        description: Text("計算結果の「お気に入りに保存」から、自己ベストや目標タイムを保存できます")
+                        description: Text("計算結果の「☆ お気に入りに追加」をタップすると、自己ベストや目標タイムをここに保存できます")
                     )
                 } else {
                     List {
@@ -99,5 +99,56 @@ struct FavoriteRow: View {
         .padding(.vertical, 4)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// お気に入りの追加・削除をしたときに画面下に出す通知
+enum FavoriteToast: Equatable {
+    case added(Favorite)
+    case removed(Favorite, index: Int)
+
+    var message: String {
+        switch self {
+        case .added(let favorite): "「\(favorite.name)」をお気に入りに追加しました"
+        case .removed(let favorite, _): "「\(favorite.name)」をお気に入りから外しました"
+        }
+    }
+
+    var actionTitle: String {
+        switch self {
+        case .added: "名前を付ける"
+        case .removed: "元に戻す"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .added: "star.fill"
+        case .removed: "star.slash"
+        }
+    }
+}
+
+struct ToastView: View {
+    let toast: FavoriteToast
+    let action: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: toast.systemImage)
+                .foregroundStyle(Color.accentColor)
+            Text(toast.message)
+                .font(.subheadline)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button(toast.actionTitle, action: action)
+                .font(.subheadline.weight(.bold))
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.15), radius: 10, y: 4)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 12)
     }
 }
