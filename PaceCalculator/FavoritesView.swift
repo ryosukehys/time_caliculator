@@ -7,6 +7,7 @@ struct FavoritesView: View {
 
     @State private var renamingID: Favorite.ID?
     @State private var renameText = ""
+    @State private var editMode: EditMode = .inactive
 
     init(favorites: Binding<[Favorite]>, onSelect: @escaping (Favorite) -> Void, onClose: @escaping () -> Void) {
         _favorites = favorites
@@ -31,7 +32,11 @@ struct FavoritesView: View {
                             } label: {
                                 FavoriteRow(favorite: favorite)
                             }
-                            .swipeActions(edge: .leading) {
+                            // 左スワイプは一覧を閉じる操作に使うので、行の操作は右スワイプにまとめる
+                            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                                Button("削除", role: .destructive) {
+                                    favorites.removeAll { $0.id == favorite.id }
+                                }
                                 Button("名前変更") {
                                     renameText = favorite.name
                                     renamingID = favorite.id
@@ -39,16 +44,21 @@ struct FavoritesView: View {
                                 .tint(.orange)
                             }
                         }
-                        .onDelete { favorites.remove(atOffsets: $0) }
+                        .onDelete(perform: deleteInEditMode)
                         .onMove { favorites.move(fromOffsets: $0, toOffset: $1) }
                     }
+                    .environment(\.editMode, $editMode)
                 }
             }
             .navigationTitle("お気に入り")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    if !favorites.isEmpty { EditButton() }
+                    if !favorites.isEmpty {
+                        Button(editMode.isEditing ? "完了" : "編集") {
+                            withAnimation { editMode = editMode.isEditing ? .inactive : .active }
+                        }
+                    }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("閉じる", action: onClose)
@@ -60,6 +70,12 @@ struct FavoritesView: View {
                 Button("キャンセル", role: .cancel) {}
             }
         }
+    }
+
+    /// 削除は編集モードのときだけ（通常時に左スワイプで削除が出ると、一覧を閉じるスワイプとぶつかるため）
+    private var deleteInEditMode: ((IndexSet) -> Void)? {
+        guard editMode.isEditing else { return nil }
+        return { favorites.remove(atOffsets: $0) }
     }
 
     private var isRenaming: Binding<Bool> {
