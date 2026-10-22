@@ -323,3 +323,27 @@ struct TimeStepTests {
         #expect(step(300, "59", "00", hours: "99", usesHours: true) == .init(hours: "99", minutes: "59", seconds: "59"))
     }
 }
+
+struct RaceEventTests {
+    @Test func includes1000m() {
+        #expect(RaceEvent.m1000.meters == 1000)
+        #expect(RaceEvent.m1000.label == "1000m")
+        // 種目ボタンの並び（3 列 × 3 段）。「距離入力」は別の段
+        #expect(RaceEvent.fixedEvents == [.m400, .m800, .m1000, .m1500, .m3000, .m5000, .m10000, .half, .full])
+    }
+
+    @Test func savedEventsStillDecode() throws {
+        // 1000m を足す前に保存したお気に入りも読める
+        let data = Data(#"{"mode":"time","event":"m1500","minutes":"4","seconds":"10"}"#.utf8)
+        let input = try JSONDecoder().decode(PaceInput.self, from: data)
+        #expect(input.event == .m1500)
+    }
+
+    @Test func samePaceMarathonTime() {
+        // 5000m 20:00（4'00"/km）のペースならフルは 2:48:47
+        let pace = PaceMath.pace(meters: 5000, seconds: 1200)
+        let full = PaceMath.time(meters: RaceEvent.full.meters!, secPerKm: pace)
+        #expect(TimeFormat.clock(full) == "2:48:47")
+        #expect(TimeFormat.clock(PaceMath.time(meters: 1000, secPerKm: pace), decimals: 1) == "4:00.0")
+    }
+}
