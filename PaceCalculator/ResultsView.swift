@@ -33,10 +33,9 @@ struct ResultsView: View {
                     }
                 }
                 SplitsCard(result: result, splitInterval: $splitInterval)
+                SamePaceCard(secPerKm: result.secPerKm, currentMeters: result.meters)
                 if mode == .time {
                     PredictionsCard(result: result)
-                } else {
-                    SamePaceCard(secPerKm: result.secPerKm)
                 }
             }
         } else {
@@ -237,24 +236,29 @@ struct PredictionsCard: View {
     }
 }
 
+/// 同じペースのまま各種目を走ったときのゴールタイム
 struct SamePaceCard: View {
     let secPerKm: Double
+    /// 今計算している距離。同じ距離の行を強調する
+    var currentMeters: Double? = nil
 
     var body: some View {
-        Card("このペースでの各種目タイム") {
+        Card("このペースで走ったときの各種目タイム") {
             RowsTable(rows: rows)
         }
     }
 
     private var rows: [ResultRow] {
-        RaceEvent.allCases.enumerated().compactMap { pair -> ResultRow? in
+        RaceEvent.fixedEvents.enumerated().compactMap { pair -> ResultRow? in
             let (index, event) = pair
             guard let meters = event.meters else { return nil }
             return ResultRow(
                 id: index,
                 label: event.label,
+                detail: event == .half || event == .full ? TimeFormat.distance(meters) : nil,
                 value: TimeFormat.clock(PaceMath.time(meters: meters, secPerKm: secPerKm),
-                                        decimals: PaceMath.goalDecimals(meters: meters))
+                                        decimals: PaceMath.goalDecimals(meters: meters)),
+                highlighted: currentMeters.map { abs($0 - meters) < 0.001 } ?? false
             )
         }
     }

@@ -183,14 +183,12 @@ struct ContentView: View {
     private var eventCard: some View {
         Card("種目") {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
-                ForEach(RaceEvent.allCases) { ev in
-                    EventChip(label: ev.label, selected: ev == event) {
-                        event = ev
-                        splitInterval = 0
-                        if ev == .custom && customValue.isEmpty { focus = .customDistance }
-                    }
+                ForEach(RaceEvent.fixedEvents) { ev in
+                    EventChip(label: ev.label, selected: ev == event) { select(ev) }
                 }
             }
+            // 3 列 × 3 段に収まるよう「距離入力」だけ横幅いっぱいの 1 段にする
+            EventChip(label: RaceEvent.custom.label, selected: event == .custom) { select(.custom) }
             if event == .custom {
                 HStack(spacing: 8) {
                     TextField("例: 12.5", text: $customValue)
@@ -224,6 +222,12 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    private func select(_ ev: RaceEvent) {
+        event = ev
+        splitInterval = 0
+        if ev == .custom && customValue.isEmpty { focus = .customDistance }
     }
 
     private var timeCard: some View {

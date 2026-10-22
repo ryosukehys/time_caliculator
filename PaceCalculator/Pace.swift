@@ -3,14 +3,18 @@ import Foundation
 // ランニングのペース計算ロジック（UI に依存しない純粋関数のみ）
 
 enum RaceEvent: String, CaseIterable, Identifiable, Codable {
-    case m400, m800, m1500, m3000, m5000, m10000, half, full, custom
+    case m400, m800, m1000, m1500, m3000, m5000, m10000, half, full, custom
 
     var id: String { rawValue }
+
+    /// 距離が決まっている種目（「距離入力」以外）
+    static var fixedEvents: [RaceEvent] { allCases.filter { $0 != .custom } }
 
     var label: String {
         switch self {
         case .m400: "400m"
         case .m800: "800m"
+        case .m1000: "1000m"
         case .m1500: "1500m"
         case .m3000: "3000m"
         case .m5000: "5000m"
@@ -25,6 +29,7 @@ enum RaceEvent: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .m400: 400
         case .m800: 800
+        case .m1000: 1000
         case .m1500: 1500
         case .m3000: 3000
         case .m5000: 5000
