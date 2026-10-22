@@ -99,6 +99,9 @@ struct ContentView: View {
                 .background(Color(.systemGroupedBackground).ignoresSafeArea())
                 .shadow(color: .black.opacity(0.25 * progress), radius: 12)
                 .offset(x: -panelWidth * (1 - progress))
+                // 一覧の上で左にスワイプしても閉じられる
+                .simultaneousGesture(drawerDrag(panelWidth: panelWidth, opening: false),
+                                     including: showingFavorites ? .all : .subviews)
                 .allowsHitTesting(progress > 0)
                 .accessibilityHidden(!showingFavorites)
             }
@@ -300,7 +303,7 @@ struct ContentView: View {
         )
     }
 
-    /// 横スワイプでお気に入りパネルを開閉する。opening が true なら計算画面上の右スワイプ、false なら暗い部分の左スワイプ
+    /// 横スワイプでお気に入りパネルを開閉する。opening が true なら計算画面上の右スワイプ、false なら一覧や暗い部分の左スワイプ
     private func drawerDrag(panelWidth: CGFloat, opening: Bool) -> some Gesture {
         DragGesture(minimumDistance: 15)
             .onChanged { value in
